@@ -1,22 +1,19 @@
 const { Model, DataTypes } = require("sequelize");
 const { sequelize } = require('../config/dbConnect');
-
-class Verification extends Model {};
+class Verification extends Model {}; 
 
 Verification.init({
-    
-        email:{
-            type:DataTypes.STRING,
-            allowNull:false,
-        },
-        code:{
-            type:DataTypes.Integer,
-            allowNull:false,
-        }
-    
-    },{
-        sequelize ,
-        tableName:"verifications"
-    }
-);
-module.exports = {Verification}
+    email: {
+        type:DataTypes.STRING,
+        allowNull:false,
+        unique:true,
+    },
+    code : {
+        type:DataTypes.INTEGER,
+        allowNull:false,
+        unique:true
+    },
+},{
+    sequelize,
+});
+module.exports =  { Verification };

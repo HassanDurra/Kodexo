@@ -19,7 +19,7 @@ const insert = async (req, res) => {
         }
 
         await User.create(createData);
-        return res.status(200).json({ 'message': `User with Name: '${name}' and Email: '${email}' has been Created!` });
+        return res.status(201).json({ 'message': `User with Name: '${name}' and Email: '${email}' has been Created!` });
     }
     catch (error) {
         const errorMessage = Object.values(error.errors).map(val => val.message).join(', ');

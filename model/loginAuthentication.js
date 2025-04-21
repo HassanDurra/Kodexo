@@ -1,9 +1,9 @@
 const { Model , DataTypes } = require("sequelize");
 const { sequelize } = require('../config/dbConnect');   
 
-class LoginAuthencation extends Model {};
+class LoginAuthentication extends Model {};
 
-LoginAuthencation.init(
+LoginAuthentication.init(
     {
         email:{
             allowNull:false,
@@ -15,8 +15,6 @@ LoginAuthencation.init(
         }
     },{
         sequelize,
-        tableName:'login_authentications'
-
     }
 )
-module.exports = {LoginAuthencation}
+module.exports = { LoginAuthentication }
