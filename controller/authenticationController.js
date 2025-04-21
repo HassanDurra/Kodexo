@@ -5,6 +5,7 @@ const { configDotenv }   = require('dotenv');
 const crypto = require('crypto');
 const { Verification } = require("../model/verification");
 const { send_email, mailTransporter } = require("../config/mailConfig");
+const { hashPassword } = require("../helper/helper");
 
 configDotenv.apply();
 
@@ -18,7 +19,7 @@ const authenticate = async ( req , res  ) => {
         const isPasswordMatched = await bcrypt.compare(password , checkUser.password);
 
         if(isPasswordMatched){
-                if(!checkUser.email_verified){
+                if(checkUser.email_verified){
                     const authToken = crypto.randomBytes(20).toString("hex") ;
                     const userData  = await LoginAuthentication.findOne({ where: { email } });
                     if (userData) {
@@ -99,5 +100,26 @@ const verify_code = async ( req , res) => {
         return res.status(500).json({ 'message': errorMessage });
     }
 }
-module.exports = { authenticate , send_verification , verify_code};
+
+const  reset_password = async ( req , res ) => {
+    try{
+        const { email , password } =  req.body ;
+        const hashedPassword = await hashPassword({value:password});
+        const updatePassword = await User.update({
+            password:hashedPassword
+        },{where:{ email : email }});
+        if(updatePassword){
+            return res.status(200).json({"message":"Password has been changed! " , "type":"success"});
+        }
+        else{
+            return res.status(500).json({"message":"Failed to reset Password! " , "type":"error"});
+        }
+    }
+    catch(error)
+    {
+        const errorMessage = Object.values(error.errors).map(val => val.message).join(', ');
+        return res.status(500).json({ 'message': errorMessage });
+    }
+}
+module.exports = { authenticate , send_verification , verify_code , reset_password };
 
