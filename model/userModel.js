@@ -1,4 +1,4 @@
-const {Sequelize , DataTypes, Model}  = require('sequelize');
+const {Sequelize , DataTypes, Model, INTEGER}  = require('sequelize');
 const { sequelize } = require('../config/dbConnect');
 class User extends Model{};
 
@@ -38,6 +38,10 @@ User.init({
         image:{
             type:DataTypes.TEXT,
             allowNull: true,
+        },
+        email_verified:{
+            type:DataTypes.INTEGER,
+            defaultValue:0
         }
       
     },
