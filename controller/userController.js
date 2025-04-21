@@ -5,7 +5,7 @@ const bcrypt = require('bcrypt');
 const insert = async (req, res) => {
 
     try {
-        const { name, email, password, userName, image, role } = req.body;
+        const { name, email, password, user_name, image, role } = req.body;
         
         const hashedPassword = await hashPassword({ value: password });
 
@@ -14,7 +14,7 @@ const insert = async (req, res) => {
             email: email,
             password: hashedPassword,
             role: role,
-            userName: userName,
+            user_name: user_name,
             image: image ? image : null,
         }
 

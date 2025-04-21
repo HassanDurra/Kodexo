@@ -29,7 +29,7 @@ User.init({
             type:DataTypes.INTEGER,
             defaultValue:0,
         },
-        userName:{
+        user_name:{
             type:DataTypes.STRING,
             unique:true,
             allowNull: false,
