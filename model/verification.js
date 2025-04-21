@@ -1,4 +1,5 @@
 const { Model, DataTypes } = require("sequelize");
+const { sequelize } = require('../config/dbConnect');
 
 class Verification extends Model {};
 
