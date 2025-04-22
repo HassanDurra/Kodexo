@@ -17,7 +17,6 @@ const authenticate = async ( req , res  ) => {
             return res.status(200).json({'message':'Incorrect email ..!','type':'error'})
         }
         const isPasswordMatched = await bcrypt.compare(password , checkUser.password);
-
         if(isPasswordMatched){
                 if(checkUser.email_verified){
                     const authToken = crypto.randomBytes(20).toString("hex") ;
@@ -34,7 +33,7 @@ const authenticate = async ( req , res  ) => {
                             token:authToken,
                         });
                     }
-                    return res.json({'message':'User Found SuccessFully!' , 'type':'success' , authToken:authToken});
+                    return res.json({'message':'Login Successful..!' , 'type':'success' , authToken:authToken , user: checkUser});
                 }
                 else{
                     return res.status(403).json({'message':'Account is not verified!', type:'unverified'})
