@@ -6,11 +6,14 @@ Verification.init({
     email: {
         type:DataTypes.STRING,
         allowNull:false,
+        unique:true,
     },
     code : {
         type:DataTypes.INTEGER,
-        allowNull:false,
+        allowNull:true,
+        unique:true
     },
+   
 },{
     sequelize,
 });

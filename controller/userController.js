@@ -1,11 +1,11 @@
 const { hashPassword } = require("../helper/helper");
+const { paginate } = require("../helper/pagination");
 const { User } = require("../model/userModel");
-const bcrypt = require("bcrypt");
 const { Op } = require("sequelize");
 
 const createUser = async (req, res) => {
   try {
-    const { name, email, password, user_name, image, user_role } = req.body;
+    const { name, email, password, user_name, image, user_role , active } = req.body;
 
     const hashedPassword = await hashPassword({ value: password });
 
@@ -15,12 +15,13 @@ const createUser = async (req, res) => {
       password: hashedPassword,
       user_role: user_role,
       user_name: user_name,
+      email_verified: active ? 1 : 0 ,
       image: image ? image : null,
     };
 
     await User.create(createData);
     return res.status(201).json({
-      message: `User with Name: '${name}' and Email: '${email}' has been Created!`,
+      message: "User Created Successfully..!",
     });
   } catch (error) {
     const errorMessage = Object.values(error.errors)
@@ -29,22 +30,10 @@ const createUser = async (req, res) => {
     return res.status(500).json({ message: errorMessage });
   }
 };
-
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.findAll({
-      attributes: [
-        "user_id",
-        "user_name",
-        "name",
-        "email",
-        "password",
-        "user_role",
-      ],
-      where: {
-        deleted_at: null,
-      },
-    });
+    const {page , limit} = req.query;
+    const users = await paginate(User , {page: parseInt( page ?? 1 ) ,limit: parseInt(limit ?? 10) , where:{ deleted_at: null , role:{ [Op.ne]: '1' } }});
 
     res.status(200).json(users);
   } catch (error) {
@@ -85,7 +74,7 @@ const updateUser = async (req, res) => {
       },
       {
         where: {
-          user_id: user_id,
+          id: user_id,
         },
         returning: true, // For PostgreSQL to return the updated rows
       }
@@ -93,14 +82,7 @@ const updateUser = async (req, res) => {
 
     if (affectedRows > 0) {
       const updatedUser = await User.findByPk(user_id, {
-        attributes: [
-          "user_id",
-          "user_name",
-          "name",
-          "email",
-          "user_role",
-          "updated_at",
-        ],
+        attributes: ["user_name", "name", "email", "user_role", "updated_at"],
       });
       res.status(200).json({
         message: `User updated successfully`,
@@ -117,7 +99,6 @@ const updateUser = async (req, res) => {
 const deleteUser = async (req, res) => {
   const user_id = parseInt(req.params.user_id);
   const { deleted_by } = req.body;
-
   try {
     const affectedRows = await User.update(
       {
@@ -126,16 +107,66 @@ const deleteUser = async (req, res) => {
       },
       {
         where: {
-          user_id: user_id,
+          id: user_id,
         },
       }
     );
 
     if (affectedRows[0] > 0) {
-      const deletedUser = await User.findByPk(user_id, { paranoid: false });
       res.status(200).json({
         message: "User deleted successfully",
-        deletedUser: deletedUser ? deletedUser.get({ plain: true }) : null,
+      });
+    } else {
+      res.status(404).json({ error: "User not found" });
+    }
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return res
+      .status(500)
+      .json({ error: "Internal Server Error", details: error.message });
+  }
+};
+const destroyUser = async (req, res) => {
+  const user_id = parseInt(req.params.user_id);
+  try {
+    const affectedRows = await User.destroy(
+      {
+        where: {
+          id: user_id,
+        },
+        force:true,
+      }
+    );
+
+    if (affectedRows) {
+      res.status(200).json({
+        message: "User deleted successfully",
+      });
+    } else {
+      res.status(404).json({ error: "User not found" });
+    }
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return res
+      .status(500)
+      .json({ error: "Internal Server Error", details: error.message });
+  }
+};
+const destroyMultipleUsers = async (req, res) => {
+  const { ids } = req.body;
+  try {
+    const affectedRows = await User.destroy(
+      {
+        where: {
+          id:{[Op.in]: ids},
+        },
+        force:true,
+      }
+    );
+
+    if (affectedRows) {
+      res.status(200).json({
+        message: "User deleted successfully",
       });
     } else {
       res.status(404).json({ error: "User not found" });
@@ -148,24 +179,15 @@ const deleteUser = async (req, res) => {
   }
 };
 const deleteMultipleUsers = async (req, res) => {
-  console.time("DeleteUsersQuery"); // Start timing the query
+  console.time("DeleteUsersQuery");
 
-  const { ids, deleted_by } = req.body; // Match frontend variable name
+  const { ids, deleted_by } = req.body;
 
-  // Validate user IDs
-  if (!Array.isArray(ids) || ids.length === 0 || ids.some(isNaN)) {
-    console.error("❌ Invalid or empty user ID list:", ids);
-    console.timeEnd("DeleteUsersQuery");
-    return res.status(400).json({ error: "Invalid or empty user ID list" });
-  }
 
-  // Validate deleted_by field
   if (!deleted_by || isNaN(deleted_by)) {
-    console.error("❌ deleted_by is required and must be a valid number");
-    console.timeEnd("DeleteUsersQuery");
     return res
       .status(400)
-      .json({ error: "deleted_by is required and must be a valid number" });
+      .json({ error: "Deleted By is required ..!" });
   }
 
   try {
@@ -176,35 +198,30 @@ const deleteMultipleUsers = async (req, res) => {
       },
       {
         where: {
-          user_id: {
+          id: {
             [Op.in]: ids.map(Number), // Ensure IDs are numbers for Sequelize
           },
         },
       }
     );
-
-    console.timeEnd("DeleteUsersQuery"); // End timing the query
-
     if (affectedRows[0] > 0) {
       const deletedUsers = await User.findAll({
         where: {
-          user_id: {
+          id: {
             [Op.in]: ids.map(Number),
           },
         },
-        paranoid: false, // Include soft-deleted records
+        paranoid: false,
         raw: true,
       });
       res.status(200).json({
-        message: "✅ Users deleted successfully",
+        message: "Users deleted successfully",
         deletedUsers: deletedUsers,
       });
     } else {
       res.status(404).json({ error: "No users found to delete" });
     }
   } catch (error) {
-    console.timeEnd("DeleteUsersQuery"); // End timing the query
-    console.error("❌ Error deleting users:", error);
     return res
       .status(500)
       .json({ error: "Database error", details: error.message });
@@ -212,16 +229,14 @@ const deleteMultipleUsers = async (req, res) => {
 };
 const getDeletedUsers = async (req, res) => {
   try {
-    const deletedUsers = await User.findAll({
-      where: {
-        deleted_at: {
-          [Op.ne]: null,
-        },
-      },
-      paranoid: false,
-    });
+    const {page , limit} = req.query;
+    const users = await paginate(User , {page: parseInt( page ?? 1 ) ,limit: parseInt(limit ?? 10) , where:{ deleted_at: {[Op.ne]:null} , role:{ [Op.ne]: '1' } },paranoid:false , include:[{
+      model: User,
+      as: 'DeletedByUser',
+      attributes:['name']
+    },] });
+    res.status(200).json(users);
 
-    res.status(200).json(deletedUsers);
   } catch (error) {
     console.error("Error fetching deleted users:", error);
     return res.status(500).json({ error: "Internal Server Error" });
@@ -238,7 +253,7 @@ const restoreUser = async (req, res) => {
       },
       {
         where: {
-          user_id: user_id,
+          id: user_id,
           deleted_at: { [Op.ne]: null },
         },
         returning: true,
@@ -259,46 +274,61 @@ const restoreUser = async (req, res) => {
     res.status(500).json({ error: "Server Internal Error" });
   }
 };
-const userStatus = async (req, res) => {
-  const user_id = parseInt(req.params.user_id, 10);
-  const { status } = req.body;
 
-  if (
-    typeof status !== "string" ||
-    !["active", "inactive"].includes(status.toLowerCase())
-  ) {
-    return res
-      .status(400)
-      .json({ error: "Invalid status value. Must be 'active' or 'inactive'." });
-  }
+const restoreMultipleUsers = async (req, res) => {
+  const { ids, deleted_by } = req.body;
 
   try {
-    const [affectedRows] = await User.update(
-      {
-        email_verified: (status.toLowerCase() == 'active' ? 1 : 0),
-      },
+    const affectedRows = await User.restore(
       {
         where: {
-          user_id: user_id,
+          id: {
+            [Op.in]: ids.map(Number),
+          },
         },
-        returning: true,
       }
     );
 
-    if (affectedRows > 0) {
-      const updatedUser = await User.findByPk(user_id);
+    if (affectedRows) {
       res.status(200).json({
-        message: `User ${user_id} status updated to ${status}`,
-        user: updatedUser ? updatedUser.get({ plain: true }) : null,
+        message: "Users Restored Successfully",
+      });
+    } else {
+      res.status(404).json({ error: "No users found to Restore" });
+    }
+  } catch (error) {
+    console.error("❌ Error Restoring users:", error);
+    return res
+      .status(500)
+      .json({ error: "Database error", details: error.message });
+  }
+};
+const userStatus = async (req, res) => {
+  const id = req.params.id ;
+  const { status , updated_by } = req.body;
+
+
+  try {
+    const [affectedRows] = await User.update(
+      { email_verified : status , updated_by : updated_by },
+      {
+        where: { id: id },
+      }
+    );
+    if (affectedRows > 0) {
+      const userData = await User.findByPk(id);
+      res.status(200).json({
+        message: `User account  with email: ${userData.email}  has been  ${ (status == 1 ? 'Activated':'Deactivated' )}`,
       });
     } else {
       res.status(404).json({ error: "User not found" });
     }
   } catch (error) {
     console.error("Database update error:", error);
-    return res
-      .status(500)
-      .json({ error: "Database error", details: error.message });
+    return res.status(500).json({
+      error: "Database error",
+      details: error.message,
+    });
   }
 };
 
@@ -308,8 +338,11 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
+  destroyUser,
   deleteMultipleUsers,
+  destroyMultipleUsers,
   getDeletedUsers,
   restoreUser,
+  restoreMultipleUsers,
   userStatus,
 };

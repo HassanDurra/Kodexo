@@ -92,7 +92,7 @@ const verify_code = async ( req , res) => {
             return res.status(200).json({"message":"Verification successful! " , "type":"success"});
         }
         else{
-            return res.status(500).json({"message":"Failed to Verify Code! " , "type":"error"});
+            return res.status(500).json({"message":"Incorrect Verification Code! " , "type":"error"});
         }
     } catch (error) {
         const errorMessage = Object.values(error.errors).map(val => val.message).join(', ');
