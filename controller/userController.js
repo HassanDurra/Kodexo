@@ -308,8 +308,6 @@ const restoreMultipleUsers = async (req, res) => {
 const userStatus = async (req, res) => {
   const id = req.params.id ;
   const { status , updated_by } = req.body;
-
-
   try {
     const [affectedRows] = await User.update(
       { email_verified : status , updated_by : updated_by },
