@@ -2,23 +2,25 @@ const { hashPassword } = require("../helper/helper");
 const { paginate } = require("../helper/pagination");
 const { User } = require("../model/userModel");
 const { Op } = require("sequelize");
-
+const fileDestination = 'users';
 const createUser = async (req, res) => {
   try {
-    const { name, email, password, user_name, image, user_role , active } = req.body;
+    const { name, email, password, user_name, role , active } = req.body;
 
     const hashedPassword = await hashPassword({ value: password });
-
+   
     const createData = {
       name: name,
       email: email,
       password: hashedPassword,
-      user_role: user_role,
+      role: role,
       user_name: user_name,
       email_verified: active ? 1 : 0 ,
-      image: image ? image : null,
     };
-
+    if(req.files[0]){
+      fileUrl = generateFileURL({req: req, filename : req.files[0].originalname , fileDestination:fileDestination});
+      createData.image = fileUrl;
+    }
     await User.create(createData);
     return res.status(201).json({
       message: "User Created Successfully..!",
@@ -59,19 +61,23 @@ const getUserById = async (req, res) => {
 };
 const updateUser = async (req, res) => {
   const user_id = parseInt(req.params.user_id);
-  const { user_name, name, email, password, user_role, updated_by } = req.body;
-
+  const { user_name, name, email, role, updated_by } = req.body;
+  
+  const updateData = {
+    user_name: user_name,
+    name: name,
+    email: email,
+    role: role,
+    updated_by: updated_by,
+    updated_at: new Date(), // Sequelize automatically handles this with timestamps: true
+  };
+  if(req.files[0]){
+    fileUrl = generateFileURL({req: req, filename : req.files[0].originalname , fileDestination:fileDestination});
+    updateData.image = fileUrl;
+  }
   try {
     const [affectedRows] = await User.update(
-      {
-        user_name: user_name,
-        name: name,
-        email: email,
-        password: password,
-        user_role: user_role,
-        updated_by: updated_by,
-        updated_at: new Date(), // Sequelize automatically handles this with timestamps: true
-      },
+      updateData,
       {
         where: {
           id: user_id,
@@ -80,19 +86,15 @@ const updateUser = async (req, res) => {
       }
     );
 
-    if (affectedRows > 0) {
-      const updatedUser = await User.findByPk(user_id, {
-        attributes: ["user_name", "name", "email", "user_role", "updated_at"],
-      });
+    if (affectedRows) {
+     
       res.status(200).json({
         message: `User updated successfully`,
-        user: updatedUser ? updatedUser.get({ plain: true }) : null,
       });
     } else {
       res.status(404).json({ message: `User with ID ${user_id} not found` });
     }
   } catch (error) {
-    console.error("❌ Error updating user:", error);
     res.status(500).json({ error: "Database error", details: error.message });
   }
 };
